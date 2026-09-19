@@ -32,6 +32,11 @@ const Dashboard = dynamic(() => import('./dashboard').then((module) => module.Da
   loading: () => <div className="workspace-skeleton" role="status" aria-label="Loading marine workspace"><i /><i /><i /></div>,
 });
 
+const ChatMiniMap = dynamic(() => import('./chat-mini-map').then((module) => module.ChatMiniMap), {
+  ssr: false,
+  loading: () => <div className="chat-mini-map chat-mini-map--loading" aria-hidden="true" />,
+});
+
 const CHAT_STORAGE_KEY = 'orca-recent-chat-v1';
 
 const CHAT_COPY = {
@@ -193,7 +198,8 @@ function ChatView({ turns, pending, language, onSubmit, onOpenMap, onDelete }: {
                     </>}
                     <button type="button" onClick={() => void speakAnswer(turn.response!.answer, turn.response!.language)} aria-label={copy.readAloud}><Volume2 size={15} /></button>
                   </div>
-                  {(turn.response.map_actions.length > 0 || turn.response.route || turn.response.recommended_pfz) && (
+                  <ChatMiniMap response={turn.response} onOpenMap={() => onOpenMap(turn.response)} />
+                  {(turn.response.map_actions.length > 0 || turn.response.route || turn.response.route_comparison || turn.response.recommended_pfz || turn.response.data.ranked_pfz_candidates?.length) && (
                     <button className="chat-map-action" type="button" onClick={() => onOpenMap(turn.response)}><Map size={15} />{copy.map}</button>
                   )}
                 </div>
