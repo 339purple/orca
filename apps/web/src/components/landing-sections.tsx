@@ -3,17 +3,9 @@
 import {
   ArrowRight,
   Check,
-  Database,
-  Fish,
-  Gauge,
-  MapPin,
-  MessageSquareText,
-  Navigation,
-  Route,
-  Satellite,
-  ShieldCheck,
   Waves,
 } from 'lucide-react';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import type { AppLanguage } from './hero/ask-orca-bar';
 
@@ -49,9 +41,13 @@ const COPY = {
     recommended: 'ORCA RECOMMENDS PFZ-02',
     nearestLabel: 'NEAREST',
     chosenLabel: 'RECOMMENDED',
-    hazardLabel: 'Hazard exposure',
-    coast: 'Departure coast',
     recommendation: '6.3 km farther, with stronger fishing potential and materially lower route risk.',
+    directRoute: 'Direct nearest option',
+    directRouteBody: 'PFZ-01 is closer, but the passage carries higher exposure and weak safety margin.',
+    safeRoute: 'Recommended passage',
+    safeRouteBody: 'PFZ-02 adds distance, but keeps the route outside the higher-risk band.',
+    ruleApplied: 'Rule applied',
+    ruleAppliedBody: 'Hard safety gates outrank distance before ORCA weighs fishing potential.',
     scenarioEyebrow: '04 / USE CASES',
     scenarioTitle: 'Different crews. One evidence-led workflow.',
     scenarioIntro: 'Choose a perspective to see the marine question, the evidence to inspect, and the next action.',
@@ -134,9 +130,13 @@ const COPY = {
     recommended: 'ORCA का सुझाव: PFZ-02',
     nearestLabel: 'निकटतम',
     chosenLabel: 'सुझाया गया',
-    hazardLabel: 'खतरे वाला क्षेत्र',
-    coast: 'प्रस्थान तट',
     recommendation: '6.3 किमी अधिक दूरी, लेकिन बेहतर मत्स्य संभावना और काफी कम मार्ग जोखिम।',
+    directRoute: 'निकटतम विकल्प',
+    directRouteBody: 'PFZ-01 पास है, लेकिन मार्ग में जोखिम अधिक और सुरक्षा मार्जिन कम है।',
+    safeRoute: 'सुझाया मार्ग',
+    safeRouteBody: 'PFZ-02 दूरी बढ़ाता है, लेकिन मार्ग को अधिक जोखिम वाले क्षेत्र से बाहर रखता है।',
+    ruleApplied: 'लागू नियम',
+    ruleAppliedBody: 'मत्स्य संभावना से पहले सुरक्षा रोक और दूरी की तुलना होती है।',
     scenarioEyebrow: '04 / उपयोग',
     scenarioTitle: 'अलग उपयोगकर्ता। प्रमाण पर आधारित एक प्रक्रिया।',
     scenarioIntro: 'समुद्री सवाल, आवश्यक प्रमाण और अगला कदम देखने के लिए अपनी भूमिका चुनें।',
@@ -190,7 +190,32 @@ const COPY = {
   },
 } as const;
 
-const CAPABILITY_ICONS = [Fish, ShieldCheck, Route, MessageSquareText] as const;
+const CAPABILITY_MEDIA = [
+  {
+    src: 'https://eoimages.gsfc.nasa.gov/images/imagerecords/84000/84479/nwshelf_vir_2014225_lrg.jpg',
+    alt: 'Satellite view of chlorophyll tracing ocean currents',
+    credit: 'NASA Earth Observatory · VIIRS',
+    href: 'https://earthobservatory.nasa.gov/images/84479/the-hydrologic-cycle',
+  },
+  {
+    src: 'https://marinenavigation.noaa.gov/images/forecasts/NDFDWaveHeightMap.jpg',
+    alt: 'NOAA marine wave-height forecast map',
+    credit: 'NOAA · NDFD wave guidance',
+    href: 'https://marinenavigation.noaa.gov/forecasts.html',
+  },
+  {
+    src: 'https://upload.wikimedia.org/wikipedia/commons/8/8c/Fishing_Boat_Waves_Devaneri_Mahabalipuram_Sep22_A7C_02637.jpg',
+    alt: 'Fishing crew launching a boat through waves at Devaneri, Tamil Nadu',
+    credit: 'T A Gonsalves · CC BY-SA 4.0',
+    href: 'https://commons.wikimedia.org/wiki/File:Fishing_Boat_Waves_Devaneri_Mahabalipuram_Sep22_A7C_02637.jpg',
+  },
+  {
+    src: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Fishing_boats_at_Rameswaram_fishing_port..JPG/1280px-Fishing_boats_at_Rameswaram_fishing_port..JPG',
+    alt: 'Fishing crews unloading sardines at Rameswaram fishing harbour',
+    credit: 'Rudolph A. Furtado · CC0',
+    href: 'https://commons.wikimedia.org/wiki/File:Fishing_boats_at_Rameswaram_fishing_port..JPG',
+  },
+] as const;
 const SOURCE_NAMES = ['INCOIS', 'IMD', 'Copernicus', 'GEBCO'];
 
 export function LandingSections({
@@ -231,20 +256,17 @@ export function LandingSections({
 
         <div className="capability-sequence">
           {copy.capabilityLabels.map(([title, description, signal], index) => {
-            const Icon = CAPABILITY_ICONS[index] ?? Waves;
+            const media = CAPABILITY_MEDIA[index];
             return (
               <article key={title}>
                 <div className="capability-copy">
                   <span>0{index + 1}</span>
-                  <Icon aria-hidden="true" />
                   <div><h3>{title}</h3><p>{description}</p></div>
                 </div>
-                <div className={`capability-visual capability-visual--${index + 1}`} aria-hidden="true">
-                  <svg viewBox="0 0 500 180">
-                    {index === 0 ? <><ellipse cx="285" cy="85" rx="145" ry="58" /><ellipse cx="285" cy="85" rx="100" ry="40" /><ellipse cx="285" cy="85" rx="52" ry="24" /><circle cx="285" cy="85" r="6" className="capability-point" /></> : index === 1 ? <><path d="M60 60Q100 25 140 60T220 60T300 60T380 60T460 60M60 93Q100 58 140 93T220 93T300 93T380 93T460 93" /><path d="M70 122H430" className="capability-threshold" /></> : index === 2 ? <><rect x="200" y="25" width="90" height="62" rx="5" className="capability-boundary" /><path d="M60 125L315 125L435 42" /><circle cx="60" cy="125" r="5" className="capability-point" /><circle cx="435" cy="42" r="5" className="capability-point" /></> : <><path d="M65 38H290V84H112L85 102V84H65ZM210 99H435V140H385L360 156V140H210Z" /><path d="M88 55H205M88 68H260M232 117H370" className="capability-message" /></>}
-                  </svg>
-                  <strong>{signal}</strong>
-                </div>
+                <figure className={`capability-visual capability-visual--${index + 1}`}>
+                  <Image src={media.src} alt={media.alt} fill sizes="(max-width: 768px) 100vw, 52vw" unoptimized />
+                  <figcaption><strong>{signal}</strong><a href={media.href} target="_blank" rel="noreferrer">{media.credit}</a></figcaption>
+                </figure>
               </article>
             );
           })}
@@ -263,7 +285,7 @@ export function LandingSections({
           </ol>
           <div className="reasoning-detail" aria-live="polite">
             <span>0{stage + 1} / 06</span><h3>{copy.process[stage]}</h3><p>{copy.processDetails[stage]}</p>
-            <div className="reasoning-signal"><Waves size={20} aria-hidden="true" /><code>{copy.processSignals[stage]}</code></div>
+            <div className="reasoning-signal"><code>{copy.processSignals[stage]}</code></div>
             <button className="orca-button orca-button--secondary" type="button" onClick={onOpenEvidence}>{copy.inspectEvidence}<ArrowRight size={16} aria-hidden="true" /></button>
           </div>
         </div>
@@ -277,28 +299,34 @@ export function LandingSections({
         </header>
         <div className="decision-comparison" aria-label={copy.illustrative}>
           <span className="decision-comparison__label">{copy.illustrative}</span>
-          <div className="comparison-chart" role="img" aria-label={`${copy.coast}: PFZ-01 — ${copy.high}; PFZ-02 — ${copy.low}`}>
-            <svg viewBox="0 0 600 180" aria-hidden="true">
-              <path d="M0 0H90L120 35L98 75L132 114L105 180H0Z" className="comparison-coast" />
-              <rect x="220" y="22" width="105" height="70" rx="5" className="comparison-hazard" />
-              <path d="M115 135L288 54" className="comparison-path comparison-path--risk" />
-              <path d="M115 135L352 140L495 42" className="comparison-path comparison-path--safe" />
-              <circle cx="115" cy="135" r="5" /><circle cx="288" cy="54" r="5" /><circle cx="495" cy="42" r="5" />
-              <text x="35" y="159">{copy.coast}</text><text x="240" y="115">{copy.hazardLabel}</text>
-              <text x="278" y="18">PFZ-01</text><text x="478" y="20">PFZ-02</text>
-            </svg>
+          <div className="decision-brief">
+            {[
+              [copy.directRoute, copy.directRouteBody],
+              [copy.safeRoute, copy.safeRouteBody],
+              [copy.ruleApplied, copy.ruleAppliedBody],
+            ].map(([title, body], index) => (
+              <article key={title}>
+                <span>0{index + 1}</span>
+                <div><strong>{title}</strong><p>{body}</p></div>
+              </article>
+            ))}
           </div>
-          <article>
-            <header><MapPin aria-hidden="true" /><strong>PFZ-01</strong><small>{copy.nearestLabel}</small></header>
-            <dl><div><dt>{copy.distance}</dt><dd>12.4 km</dd></div><div><dt>{copy.fishing}</dt><dd>82</dd></div><div><dt>{copy.safety}</dt><dd>52</dd></div><div><dt>{copy.routeRisk}</dt><dd className="risk-high">{copy.high}</dd></div></dl>
-            <div className="comparison-bars" aria-hidden="true"><i style={{ width: '82%' }} /><i className="comparison-bars--risk" style={{ width: '52%' }} /></div>
-          </article>
-          <div className="decision-route" aria-hidden="true"><span /><Navigation /></div>
-          <article className="decision-comparison__selected">
-            <header><ShieldCheck aria-hidden="true" /><strong>PFZ-02</strong><small>{copy.chosenLabel}</small></header>
-            <dl><div><dt>{copy.distance}</dt><dd>18.7 km</dd></div><div><dt>{copy.fishing}</dt><dd>88</dd></div><div><dt>{copy.safety}</dt><dd>86</dd></div><div><dt>{copy.routeRisk}</dt><dd className="risk-low">{copy.low}</dd></div></dl>
-            <div className="comparison-bars" aria-hidden="true"><i style={{ width: '88%' }} /><i style={{ width: '86%' }} /></div>
-          </article>
+          <div className="comparison-columns" aria-label={language === 'hi' ? 'PFZ विकल्प तुलना' : 'PFZ option comparison'}>
+            {[
+              { zone: 'PFZ-01', label: copy.nearestLabel, distance: '12.4 km', fishing: 82, safety: 52, risk: copy.high, riskClass: 'risk-high' },
+              { zone: 'PFZ-02', label: copy.chosenLabel, distance: '18.7 km', fishing: 88, safety: 86, risk: copy.low, riskClass: 'risk-low' },
+            ].map((item) => (
+              <article className="comparison-option" key={item.zone}>
+                <header><strong>{item.zone}</strong><span>{item.label}</span></header>
+                <dl>
+                  <div><dt>{copy.distance}</dt><dd>{item.distance}</dd></div>
+                  <div><dt>{copy.fishing}</dt><dd><span className="metric-value">{item.fishing}</span><span className="metric-track"><i style={{ width: `${item.fishing}%` }} /></span></dd></div>
+                  <div><dt>{copy.safety}</dt><dd><span className="metric-value">{item.safety}</span><span className="metric-track metric-track--safe"><i style={{ width: `${item.safety}%` }} /></span></dd></div>
+                  <div><dt>{copy.routeRisk}</dt><dd className={item.riskClass}>{item.risk}</dd></div>
+                </dl>
+              </article>
+            ))}
+          </div>
           <div className="decision-result"><Check aria-hidden="true" /><span><strong>{copy.recommended}</strong><small>{copy.recommendation}</small></span></div>
         </div>
       </section>
@@ -307,7 +335,7 @@ export function LandingSections({
         <header className="landing-heading"><span>{copy.scenarioEyebrow}</span><h2>{copy.scenarioTitle}</h2><p>{copy.scenarioIntro}</p></header>
         <div className="use-case-layout">
           <div className="use-case-selector" role="group" aria-label={copy.scenarioTitle}>{copy.scenarios.map(([role], index) => <button key={role} type="button" aria-pressed={scenario === index} onClick={() => setScenario(index)}>{role}<ArrowRight size={16} aria-hidden="true" /></button>)}</div>
-          <article className="use-case-scenario" aria-live="polite" key={scenario}><span>{copy.scenarios[scenario][3]}</span><MessageSquareText size={24} aria-hidden="true" /><h3>{copy.scenarios[scenario][1]}</h3><p>{copy.scenarios[scenario][2]}</p><button className="orca-button orca-button--primary" type="button" onClick={() => void onAskQuery(copy.scenarios[scenario][1])}>{copy.askScenario}<ArrowRight size={16} aria-hidden="true" /></button></article>
+          <article className="use-case-scenario" aria-live="polite" key={scenario}><span>{copy.scenarios[scenario][3]}</span><h3>{copy.scenarios[scenario][1]}</h3><p>{copy.scenarios[scenario][2]}</p><button className="orca-button orca-button--primary" type="button" onClick={() => void onAskQuery(copy.scenarios[scenario][1])}>{copy.askScenario}<ArrowRight size={16} aria-hidden="true" /></button></article>
         </div>
       </section>
 
@@ -317,18 +345,27 @@ export function LandingSections({
           <h2>{copy.sourceTitle}</h2>
           <p>{copy.sourceIntro}</p>
         </header>
-        <div className="source-pipeline">
-          <div className="source-cloud">{[...SOURCE_NAMES, copy.hydrographic].map((source) => <span key={source}>{source}</span>)}</div>
-          <ArrowRight aria-hidden="true" />
-          <div className="pipeline-stage"><Satellite aria-hidden="true" /><strong>{copy.collector}</strong></div>
-          <ArrowRight aria-hidden="true" />
-          <div className="pipeline-stage"><Database aria-hidden="true" /><strong>{copy.normalize}</strong></div>
-          <ArrowRight aria-hidden="true" />
-          <div className="pipeline-stage"><Gauge aria-hidden="true" /><strong>{copy.freshness}</strong></div>
-          <ArrowRight aria-hidden="true" />
-          <div className="pipeline-stage pipeline-stage--final"><Waves aria-hidden="true" /><strong>{copy.engine}</strong></div>
+        <div className="source-pipeline" aria-label={copy.sourceTitle}>
+          <div className="source-stack">
+            <span>{language === 'hi' ? 'स्रोत' : 'Sources'}</span>
+            <strong>{SOURCE_NAMES.join(' · ')}</strong>
+            <small>{copy.hydrographic}</small>
+          </div>
+          <ol className="pipeline-steps">
+            {[
+              [copy.collector, language === 'hi' ? 'पूर्वानुमान, चेतावनी और सीमा डेटा जुटता है।' : 'Forecasts, advisories, and boundaries enter the same evidence stream.'],
+              [copy.normalize, language === 'hi' ? 'मान, इकाई, स्थान और वैध समय एक रूप में आते हैं।' : 'Values, units, location, and valid time are made comparable.'],
+              [copy.freshness, language === 'hi' ? 'पुराना, डेमो या अनुपलब्ध डेटा निर्णय में साफ दिखता है।' : 'Stale, demo, or unavailable readings stay visible before ranking.'],
+              [copy.engine, language === 'hi' ? 'सुरक्षा रोक पहले, फिर मत्स्य संभावना और दूरी।' : 'Safety gates first, then fishing potential and distance.'],
+            ].map(([title, body], index) => (
+              <li key={title} className={index === 3 ? 'pipeline-step--final' : undefined}>
+                <span>0{index + 1}</span>
+                <strong>{title}</strong>
+                <small>{body}</small>
+              </li>
+            ))}
+          </ol>
         </div>
-        <div className="source-example"><span>{copy.evidenceExample}</span><pre><code>{'{ "parameter": "wave_height", "value": 1.4, "unit": "m", "source": "synthetic_fixture", "mode": "DEMO" }'}</code></pre><p>{copy.stateDescriptions[3]}</p></div>
       </section>
 
       <section className="landing-section explain-section" id="explainability">
@@ -339,16 +376,16 @@ export function LandingSections({
         </header>
         <div className="explain-layout">
           <article className="evidence-receipt">
-            <header><Waves aria-hidden="true" /><h3>{copy.explanationTitle}</h3><span className="data-state data-state--demo">{copy.states[3]}</span></header>
+            <header><h3>{copy.explanationTitle}</h3><span className="data-state data-state--demo">{copy.states[3]}</span></header>
             <p className="evidence-receipt__why">{copy.exampleWhy}</p>
-            <dl>{copy.explanationRows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}<small className="data-state data-state--demo" title={copy.stateDescriptions[3]}>{copy.states[3]}</small></dd></div>)}</dl>
+            <dl>{copy.explanationRows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
             <p className="evidence-receipt__source">{copy.exampleSource}</p>
           </article>
           <details className="freshness-legend"><summary>{copy.stateLegend}</summary>{copy.states.map((state, index) => <p key={state}><span className={`data-state data-state--${['live', 'cached', 'static', 'demo'][index]}`}>{state}</span>{copy.stateDescriptions[index]}</p>)}</details>
         </div>
       </section>
 
-      <section className="landing-section reliability-section" id="safety-reliability"><header className="landing-heading"><span>{copy.reliabilityEyebrow}</span><h2>{copy.reliabilityTitle}</h2></header><div className="reliability-rules">{copy.reliability.map(([title, body], index) => <article key={title}><span>0{index + 1}</span><ShieldCheck size={20} aria-hidden="true" /><div><h3>{title}</h3><p>{body}</p></div></article>)}</div></section>
+      <section className="landing-section reliability-section" id="safety-reliability"><header className="landing-heading"><span>{copy.reliabilityEyebrow}</span><h2>{copy.reliabilityTitle}</h2></header><div className="reliability-rules">{copy.reliability.map(([title, body], index) => <article key={title}><span>0{index + 1}</span><div><h3>{title}</h3><p>{body}</p></div></article>)}</div></section>
 
       <section className="landing-final" aria-labelledby="final-title">
         <div><span>{copy.finalEyebrow}</span><h2 id="final-title">{copy.finalTitle}</h2><p>{copy.finalIntro}</p></div>
