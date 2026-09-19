@@ -95,7 +95,6 @@ export type ChatRequestPayload = {
   location?: Location;
   language?: string;
   developer_mode?: boolean;
-  history?: Array<{ role: string; content: string }>;
 };
 
 export type ChatResponsePayload = {
@@ -120,15 +119,6 @@ export type ChatResponsePayload = {
   map_actions: MapActionPayload[];
   status: 'success' | 'partial' | 'failed';
   run_id: string;
-  tool_calls?: ToolCallTrace[];
-};
-
-export type ToolCallTrace = {
-  task_id: string;
-  agent: string;
-  action: string;
-  status: string;
-  duration_ms: number;
 };
 
 export type TranscriptionResult = {

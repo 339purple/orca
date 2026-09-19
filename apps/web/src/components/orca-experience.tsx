@@ -1,6 +1,6 @@
 'use client';
 
-import React, { type FormEvent, type ReactNode, useEffect, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
 import type { ConversationContext, DecisionResponse } from '@orca/contracts';
 import dynamic from 'next/dynamic';
 import {
@@ -11,14 +11,12 @@ import {
   Volume2,
   Waves,
 } from 'lucide-react';
-import { marineApi, type ChatResponsePayload, type Location } from '@/services/marine-api';
+import { marineApi, type ChatResponsePayload } from '@/services/marine-api';
 import { OrcaHero } from './hero/orca-hero';
 import { OrcaNav } from './hero/orca-nav';
 import type { AppLanguage } from './hero/ask-orca-bar';
 import type { MarineToolId } from './hero/marine-tool-dock';
 import { LandingSections } from './landing-sections';
-import { AgentChatTrace, AgentThinkingIndicator } from './agent-chat-trace';
-import { FishLocateCard, RegionalFishDropdowns } from './regional-fish-dropdowns';
 
 type View = 'chat' | 'workspace' | 'evidence';
 type ChatTurn = {
@@ -32,10 +30,6 @@ type ChatTurn = {
 
 const Dashboard = dynamic(() => import('./dashboard').then((module) => module.Dashboard), {
   loading: () => <div className="workspace-skeleton" role="status" aria-label="Loading marine workspace"><i /><i /><i /></div>,
-});
-const MarineMap = dynamic(() => import('./marine-map').then((module) => module.MarineMap), {
-  ssr: false,
-  loading: () => <div className="chat-map-preview__loading" role="status">Loading configured map…</div>,
 });
 
 const CHAT_STORAGE_KEY = 'orca-recent-chat-v1';
@@ -51,8 +45,6 @@ const CHAT_COPY = {
     user: 'YOU',
     assistant: 'ORCA',
     map: 'Open workspace',
-    mapPreview: 'Configured map preview',
-    autoConfig: 'Auto applied map commands',
     mapGuide: 'The marine workspace is ready. Open it to inspect fishing zones, conditions, alerts, routes, and data layers.',
     guide: 'I can compare likely fishing zones, explain sea conditions and warnings, assess voyage risk, and open the marine workspace. Tell me your departure coast and time to begin.',
     recent: 'Recent conversation',
@@ -77,8 +69,6 @@ const CHAT_COPY = {
     user: 'आप',
     assistant: 'ORCA',
     map: 'कार्यस्थल खोलें',
-    mapPreview: 'सेट किया गया मानचित्र',
-    autoConfig: 'मानचित्र आदेश अपने-आप लागू हुए',
     mapGuide: 'समुद्री कार्यस्थल तैयार है। मछली क्षेत्र, स्थिति, चेतावनी, मार्ग और डेटा परतें देखने के लिए इसे खोलें।',
     guide: 'मैं मछली पकड़ने के संभावित क्षेत्रों की तुलना, समुद्री स्थिति और चेतावनियाँ समझाने, यात्रा जोखिम जाँचने और समुद्री कार्यस्थल खोलने में मदद कर सकता हूँ। अपना प्रस्थान तट और समय बताएँ।',
     recent: 'हाल की बातचीत',
@@ -143,14 +133,6 @@ async function speakAnswer(text: string, language: string) {
   }
 }
 
-function hasMapConfiguration(response: ChatResponsePayload) {
-  return response.map_actions.length > 0 || !!response.route || !!response.recommended_pfz || !!response.data.ranked_pfz;
-}
-
-function hasFishLocateContext(response: ChatResponsePayload) {
-  return response.intent !== 'general_conversation' || hasMapConfiguration(response);
-}
-
 function ChatComposer({ language, pending, onSubmit }: { language: AppLanguage; pending: boolean; onSubmit: (query: string) => Promise<void> }) {
   const [message, setMessage] = useState('');
   const copy = CHAT_COPY[language];
@@ -171,108 +153,9 @@ function ChatComposer({ language, pending, onSubmit }: { language: AppLanguage; 
   );
 }
 
-function ChatMapPreview({ response, decision, language, onOpenMap }: { response: ChatResponsePayload; decision?: DecisionResponse; language: AppLanguage; onOpenMap: () => void }) {
-  const copy = CHAT_COPY[language];
-  const location: Location | undefined = response.location ?? undefined;
-  if (!decision) return null;
-  return (
-    <section className="chat-map-preview" aria-label={copy.mapPreview}>
-      <div className="chat-map-preview__header">
-        <span><Map size={14} />{copy.mapPreview}</span>
-        <small>{response.map_actions.length || 1} {copy.autoConfig}</small>
-      </div>
-      <MarineMap decision={decision} onSelectZone={() => {}} currentLocation={location} mapActions={response.map_actions} language={language} />
-      <button className="chat-map-action" type="button" onClick={onOpenMap}><Map size={15} />{copy.map}</button>
-    </section>
-  );
-}
-
-function renderInlineFormatting(line: string): React.ReactNode {
-  // Strip stray asterisks and turn **bold** or *emphasis* into clean <strong> tags without visible asterisks
-  const parts = line.split(/(\*\*[^*]+?\*\*|\*[^*]+?\*)/g);
-  return parts.map((part, idx) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      const content = part.slice(2, -2).replace(/\*/g, '').trim();
-      return <strong key={idx}>{content}</strong>;
-    }
-    if (part.startsWith('*') && part.endsWith('*')) {
-      const content = part.slice(1, -1).replace(/\*/g, '').trim();
-      return <strong key={idx}>{content}</strong>;
-    }
-    const clean = part.replace(/\*/g, '');
-    return <span key={idx}>{clean}</span>;
-  });
-}
-
-export function FormattedAnswer({ text }: { text?: string }) {
-  if (!text) return null;
-  const paragraphs = text.split(/\n\s*\n/);
-
-  return (
-    <div className="chat-answer-body">
-      {paragraphs.map((para, pIdx) => {
-        const rawLines = para.split('\n').map((l) => l.trim()).filter(Boolean);
-        if (rawLines.length === 0) return null;
-
-        const isList = rawLines.every((l) => /^(\d+\.|\*|\-|\•)\s+/.test(l));
-        if (isList) {
-          return (
-            <ul key={pIdx} className="chat-answer-list">
-              {rawLines.map((line, lIdx) => {
-                const numMatch = line.match(/^(\d+)\.\s+(.*)/);
-                if (numMatch) {
-                  return (
-                    <li key={lIdx}>
-                      <span className="list-bullet">{numMatch[1]}.</span>
-                      <span>{renderInlineFormatting(numMatch[2])}</span>
-                    </li>
-                  );
-                }
-                const bulletContent = line.replace(/^(\*|\-|\•)\s+/, '');
-                return (
-                  <li key={lIdx}>
-                    <span className="list-bullet">•</span>
-                    <span>{renderInlineFormatting(bulletContent)}</span>
-                  </li>
-                );
-              })}
-            </ul>
-          );
-        }
-
-        return (
-          <p key={pIdx}>
-            {rawLines.map((line, lIdx) => {
-              const numMatch = line.match(/^(\d+)\.\s+(.*)/);
-              const bulletMatch = line.match(/^(\*|\-|\•)\s+(.*)/);
-              if (numMatch || bulletMatch) {
-                const bullet = numMatch ? `${numMatch[1]}.` : '•';
-                const body = numMatch ? numMatch[2] : bulletMatch![2];
-                return (
-                  <span key={lIdx} style={{ display: 'block', margin: '4px 0' }}>
-                    <strong style={{ color: '#52c4b2', marginRight: '6px' }}>{bullet}</strong>
-                    {renderInlineFormatting(body)}
-                  </span>
-                );
-              }
-              return (
-                <React.Fragment key={lIdx}>
-                  {lIdx > 0 && <br />}
-                  {renderInlineFormatting(line)}
-                </React.Fragment>
-              );
-            })}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
-
-function ChatView({ turns, pending, language, initialDecision, onSubmit, onOpenMap, onDelete }: { turns: ChatTurn[]; pending: boolean; language: AppLanguage; initialDecision?: DecisionResponse; onSubmit: (query: string) => Promise<void>; onOpenMap: (response?: ChatResponsePayload) => void; onDelete: () => void }) {
+function ChatView({ turns, pending, language, onSubmit, onOpenMap, onDelete }: { turns: ChatTurn[]; pending: boolean; language: AppLanguage; onSubmit: (query: string) => Promise<void>; onOpenMap: (response?: ChatResponsePayload) => void; onDelete: () => void }) {
   const endRef = useRef<HTMLDivElement>(null);
   const copy = CHAT_COPY[language];
-  const latestResponse = [...turns].reverse().find((turn) => turn.response)?.response;
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [turns, pending]);
@@ -284,64 +167,42 @@ function ChatView({ turns, pending, language, initialDecision, onSubmit, onOpenM
         <span><History size={15} /><span><strong>{copy.recent}</strong><small>{turns.length} {exchangeLabel}</small></span></span>
         {turns.length > 0 ? <button className="chat-session-bar__delete" type="button" disabled={pending} onClick={onDelete}><Trash2 size={14} aria-hidden="true" />{copy.deleteChat}</button> : null}
       </div>
-      <div className="chat-body-container">
-        <div className="chat-thread" aria-live="polite">
-          {turns.length === 0 && (
-            <div className="chat-empty">
-              <span className="view-eyebrow">{copy.ready}</span>
-              <h1>{copy.title}</h1>
-              <p>{copy.intro}</p>
-            </div>
-          )}
-          {turns.map((turn) => (
-            <div className="chat-turn" key={turn.id}>
-              <div className="chat-message chat-message--user"><span>{copy.user}</span><p>{turn.query}</p></div>
-              <div className="chat-message chat-message--orca">
-                <span><Waves size={14} />{copy.assistant}</span>
-                {!turn.guide && !turn.response && !turn.error && (
-                  <AgentThinkingIndicator language={language} />
-                )}
-                {turn.error && <div className="chat-error" role="alert">{turn.error === CHAT_COPY.en.interrupted ? copy.interrupted : turn.error}</div>}
-                {turn.guide && (
-                  <div className="chat-answer">
-                    <FormattedAnswer text={turn.guide} />
+      <div className="chat-thread" aria-live="polite">
+        {turns.length === 0 && (
+          <div className="chat-empty">
+            <span className="view-eyebrow">{copy.ready}</span>
+            <h1>{copy.title}</h1>
+            <p>{copy.intro}</p>
+          </div>
+        )}
+        {turns.map((turn) => (
+          <div className="chat-turn" key={turn.id}>
+            <div className="chat-message chat-message--user"><span>{copy.user}</span><p>{turn.query}</p></div>
+            <div className="chat-message chat-message--orca">
+              <span><Waves size={14} />{copy.assistant}</span>
+              {!turn.guide && !turn.response && !turn.error && <div className="chat-thinking" role="status"><i /><i /><i />{copy.thinking}</div>}
+              {turn.error && <div className="chat-error" role="alert">{turn.error === CHAT_COPY.en.interrupted ? copy.interrupted : turn.error}</div>}
+              {turn.guide && <div className="chat-answer"><p>{turn.guide}</p></div>}
+              {turn.response && (
+                <div className="chat-answer">
+                  <p>{turn.response.answer}</p>
+                  <div className="chat-answer__meta">
+                    {turn.response.intent === 'general_conversation' ? <span>{copy.conversation}</span> : <>
+                      <span>{Math.round(turn.response.confidence * 100)}% {copy.confidence}</span>
+                      <span>{turn.response.sources.join(' · ') || copy.noSources}</span>
+                    </>}
+                    <button type="button" onClick={() => void speakAnswer(turn.response!.answer, turn.response!.language)} aria-label={copy.readAloud}><Volume2 size={15} /></button>
                   </div>
-                )}
-                {turn.response && (
-                  <div className="chat-answer">
-                    <FormattedAnswer text={turn.response.answer} />
-                    <AgentChatTrace
-                      toolCalls={turn.response.tool_calls}
-                      tasks={turn.response.data?.tasks as Array<{ id: string; agent: string; action: string }> | undefined}
-                      intent={turn.response.intent}
-                      language={language}
-                    />
-                    <div className="chat-answer__meta">
-                      {turn.response.intent === 'general_conversation' ? <span>{copy.conversation}</span> : <>
-                        <span>{Math.round(turn.response.confidence * 100)}% {copy.confidence}</span>
-                        <span>{turn.response.sources.join(' · ') || copy.noSources}</span>
-                      </>}
-                      <button type="button" onClick={() => void speakAnswer(turn.response!.answer, turn.response!.language)} aria-label={copy.readAloud}><Volume2 size={15} /></button>
-                    </div>
-                    {hasFishLocateContext(turn.response) && (
-                      <FishLocateCard response={turn.response} language={language} onSelectPrompt={(prompt) => void onSubmit(prompt)} />
-                    )}
-                    {hasMapConfiguration(turn.response) && (
-                      <ChatMapPreview response={turn.response} decision={initialDecision} language={language} onOpenMap={() => onOpenMap(turn.response)} />
-                    )}
-                  </div>
-                )}
-                {turn.mapRequested && <button className="chat-map-action" type="button" onClick={() => onOpenMap()}><Map size={15} />{copy.map}</button>}
-              </div>
+                  {(turn.response.map_actions.length > 0 || turn.response.route || turn.response.recommended_pfz) && (
+                    <button className="chat-map-action" type="button" onClick={() => onOpenMap(turn.response)}><Map size={15} />{copy.map}</button>
+                  )}
+                </div>
+              )}
+              {turn.mapRequested && <button className="chat-map-action" type="button" onClick={() => onOpenMap()}><Map size={15} />{copy.map}</button>}
             </div>
-          ))}
-          <div ref={endRef} />
-        </div>
-        <RegionalFishDropdowns
-          language={language}
-          activeResponse={latestResponse}
-          onSelectPrompt={(prompt) => void onSubmit(prompt)}
-        />
+          </div>
+        ))}
+        <div ref={endRef} />
       </div>
       <ChatComposer language={language} pending={pending} onSubmit={onSubmit} />
     </div>
@@ -506,25 +367,8 @@ export function OrcaExperience({ initialDecision, initialContext }: { initialDec
     setPending(true);
     setTurns((current) => [...current, { id, query }]);
     try {
-      const history = turns
-        .filter((t) => t.response?.answer)
-        .slice(-4)
-        .flatMap((t) => [
-          { role: 'user', content: t.query },
-          { role: 'assistant', content: t.response!.answer },
-        ]);
-
-      const response = await marineApi.chat({
-        message: query,
-        session_id: sessionId.current,
-        language,
-        history,
-      });
+      const response = await marineApi.chat({ message: query, session_id: sessionId.current, language });
       sessionId.current = response.session_id;
-      if (hasMapConfiguration(response)) {
-        setWorkspaceChat(response);
-        setActiveTool('fishing');
-      }
       setTurns((current) => current.map((turn) => turn.id === id ? { ...turn, response } : turn));
     } catch {
       const message = language === 'hi' ? CHAT_COPY.hi.error : CHAT_COPY.en.error;
@@ -555,7 +399,7 @@ export function OrcaExperience({ initialDecision, initialContext }: { initialDec
         <section className={`experience-overlay experience-overlay--${view}`} aria-label={language === 'hi' ? 'ORCA दृश्य' : `${view} view`}>
           <div className="experience-page">
             {view === 'chat' ? (
-              <ChatView turns={turns} pending={pending} language={language} initialDecision={initialDecision} onSubmit={runQuery} onOpenMap={(response) => { setWorkspaceChat(response); openView('workspace'); }} onDelete={deleteChat} />
+              <ChatView turns={turns} pending={pending} language={language} onSubmit={runQuery} onOpenMap={(response) => { setWorkspaceChat(response); openView('workspace'); }} onDelete={deleteChat} />
             ) : view === 'workspace' ? (
               initialDecision && initialContext ? <Dashboard initialDecision={initialDecision} initialContext={initialContext} embedded language={language} workspaceTool={activeTool ?? 'fishing'} initialChat={workspaceChat} /> : <div className="workspace-unavailable" role="alert"><Map size={24} /><h1>{language === 'hi' ? 'कार्यस्थल डेटा उपलब्ध नहीं है।' : 'Workspace data is unavailable.'}</h1><p>{language === 'hi' ? 'ORCA के निर्णय इंजन से दोबारा जुड़ने तक बातचीत उपलब्ध रहेगी।' : 'The conversation remains available while ORCA reconnects to the decision engine.'}</p></div>
             ) : (
